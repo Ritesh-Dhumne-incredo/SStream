@@ -13,37 +13,34 @@ pipeline {
             }
         }
 
-stage('Install Databricks CLI') {
-    steps {
-        bat """
-            python -m pip install --upgrade pip
-            pip install --upgrade databricks-cli
-        """
-    }
-}
-
-
-stage('Run Databricks Notebook') {
-    steps {
-        bat """
-            REM Set Databricks environment variables
-            set DATABRICKS_HOST=%DATABRICKS_HOST%
-            set DATABRICKS_TOKEN=%DATABRICKS_TOKEN%
-
-            REM Run notebook using Databricks CLI
-            databricks runs submit --json "{ 
-              \\"run_name\\": \\"Jenkins Notebook Run\\", 
-              \\"existing_cluster_id\\": \\"<cluster-id>\\",
-              \\"notebook_task\\": { 
-                \\"notebook_path\\": \\"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\\" 
-              } 
-            }"
-        """
-    }
-}
-
+        stage('Install Databricks CLI') {
+            steps {
+                bat """
+                    python -m pip install --upgrade pip
+                    pip install --upgrade databricks-cli
+                """
+            }
         }
-    }
+
+        stage('Run Databricks Notebook') {
+            steps {
+                bat """
+                    REM Set Databricks environment variables
+                    set DATABRICKS_HOST=%DATABRICKS_HOST%
+                    set DATABRICKS_TOKEN=%DATABRICKS_TOKEN%
+
+                    REM Run notebook using Databricks CLI
+                    databricks runs submit --json "{ 
+                      \\"run_name\\": \\"Jenkins Notebook Run\\", 
+                      \\"existing_cluster_id\\": \\"<cluster-id>\\",
+                      \\"notebook_task\\": { 
+                        \\"notebook_path\\": \\"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\\" 
+                      } 
+                    }"
+                """
+            }
+        }
+    } // end of stages
 
     post {
         always {
