@@ -15,7 +15,7 @@ pipeline {
 
         stage('Install Databricks CLI') {
             steps {
-                sh '''
+                bat '''
                     python3 -m pip install --upgrade pip
                     pip install --upgrade databricks-cli
                 '''
@@ -24,7 +24,7 @@ pipeline {
 
         stage('Run Databricks Notebook') {
             steps {
-                sh '''
+                bat '''
                     databricks configure --token <<EOF
                     $DATABRICKS_HOST
                     $DATABRICKS_TOKEN
