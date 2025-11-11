@@ -2,11 +2,12 @@ pipeline {
     agent any
 
     environment {
-        // Databricks cluster ID and notebook path
-        CLUSTER_ID = '2236063f6f28e164'  // <-- replace with your actual cluster ID
+        DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
+        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // token stored in Jenkins credentials
+        CLUSTER_ID = '2236063f6f28e164'
         NOTEBOOK_PATH = '/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream'
-        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // Jenkins credential ID
     }
+
 
     stages {
         stage('Checkout SCM') {
