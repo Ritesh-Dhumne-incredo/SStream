@@ -8,12 +8,16 @@ pipeline {
 
         DATABRICKS_TOKEN = credentials('DBT')     // Jenkins secret text credential
 
-        JOB_ID = '216873594474493'                // Your Databricks job ID
+        JOB_ID = '216873594474493'                // Your predefined Databricks job ID
+
+        CLUSTER_ID = '2236063f6f28e164'          // Cluster for ad-hoc notebook
+
+        NOTEBOOK_PATH = '/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/API_stream'
 
     }
  
     stages {
-
+ 
         stage('Checkout Notebook Repo') {
 
             steps {
@@ -42,23 +46,23 @@ pipeline {
 
         }
  
-        stage('Run Databricks Notebook (Ad-hoc)') {
+        stage('Configure Databricks CLI') {
 
             steps {
 
                 bat """
 
-                    echo Configuring Databricks CLI...
+                    echo Creating Databricks CLI config...
 
-                    echo [DEFAULT]> %USERPROFILE%\\.databrickscfg
+                    set DBCFG=C:\\Jenkins\\.databrickscfg
 
-                    echo host = %DATABRICKS_HOST%>> %USERPROFILE%\\.databrickscfg
+                    echo [DEFAULT]> %DBCFG%
 
-                    echo token = %DATABRICKS_TOKEN%>> %USERPROFILE%\\.databrickscfg
- 
-                    echo Running Databricks notebook directly...
+                    echo host = %DATABRICKS_HOST%>> %DBCFG%
 
-                    python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"2236063f6f28e164\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/API_stream\\"}}"
+                    echo token = %DATABRICKS_TOKEN%>> %DBCFG%
+
+                    set DATABRICKS_CONFIG_FILE=%DBCFG%
 
                 """
 
@@ -66,41 +70,121 @@ pipeline {
 
         }
  
-        stage('Run Databricks Job (Predefined Job)') {
+        stage('Run Notebook Ad-hoc (run-submit)') {
 
             steps {
 
                 bat """
 
-                    echo Configuring Databricks CLI...
+                    echo Triggering ad-hoc notebook...
 
-                    echo [DEFAULT]> %USERPROFILE%\\.databrickscfg
+                    python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"%CLUSTER_ID%\\", \\"notebook_task\\": {\\"notebook_path\\": \\"%NOTEBOOK_PATH%\\"}}" > notebook_run.json
 
-                    echo host = %DATABRICKS_HOST%>> %USERPROFILE%\\.databrickscfg
-
-                    echo token = %DATABRICKS_TOKEN%>> %USERPROFILE%\\.databrickscfg
+                    type notebook_run.json
  
+                    rem Extract run_id
+
+                    for /f "tokens=2 delims=:" %%a in ('findstr /i "run_id" notebook_run.json') do set RUN_ID=%%~a
+
+                    set RUN_ID=%RUN_ID: =%
+
+                    set RUN_ID=%RUN_ID:,=%
+ 
+                    echo Waiting for notebook to complete...
+
+                    databricks runs wait --run-id %RUN_ID%
+
+                    databricks runs get --run-id %RUN_ID% > notebook_result.json
+
+                    type notebook_result.json
+ 
+                    rem Fail build if notebook failed
+
+                    for /f "tokens=2 delims=:" %%a in ('findstr /i "result_state" notebook_result.json') do set RESULT=%%~a
+
+                    set RESULT=%RESULT: =%
+
+                    set RESULT=%RESULT:"=%
+
+                    if NOT "%RESULT%"=="SUCCESS" (
+
+                        echo ❌ Notebook failed with result_state=%RESULT%
+
+                        exit /b 1
+
+                    ) else (
+
+                        echo ✅ Notebook succeeded!
+
+                    )
+
+                """
+
+            }
+
+        }
+ 
+        stage('Run Predefined Databricks Job (run-now)') {
+
+            steps {
+
+                bat """
+
                     echo Triggering Databricks Job ID: %JOB_ID%
 
-                    databricks jobs run-now --job-id %JOB_ID% --output > run_output.json
- 
-                    echo Checking job run result...
+                    databricks jobs run-now --job-id %JOB_ID% --output > job_run.json
 
-                    type run_output.json
+                    type job_run.json
+ 
+                    rem Extract run_id
+
+                    for /f "tokens=2 delims=:" %%a in ('findstr /i "run_id" job_run.json') do set RUN_ID=%%~a
+
+                    set RUN_ID=%RUN_ID: =%
+
+                    set RUN_ID=%RUN_ID:,=%
+ 
+                    echo Waiting for job to complete...
+
+                    databricks runs wait --run-id %RUN_ID%
+
+                    databricks runs get --run-id %RUN_ID% > job_result.json
+
+                    type job_result.json
+ 
+                    rem Fail build if job failed
+
+                    for /f "tokens=2 delims=:" %%a in ('findstr /i "result_state" job_result.json') do set RESULT=%%~a
+
+                    set RESULT=%RESULT: =%
+
+                    set RESULT=%RESULT:"=%
+
+                    if NOT "%RESULT%"=="SUCCESS" (
+
+                        echo ❌ Databricks job failed with result_state=%RESULT%
+
+                        exit /b 1
+
+                    ) else (
+
+                        echo ✅ Databricks job succeeded!
+
+                    )
 
                 """
 
             }
 
         }
-
+ 
     }
  
     post {
 
         always {
 
-            echo "Databricks pipeline finished (both notebook and job stages executed)."
+            echo "Databricks pipeline finished (notebook + job)."
 
         }
 
@@ -112,7 +196,7 @@ pipeline {
 
         failure {
 
-            echo "❌ Databricks pipeline failed!"
+            echo "❌ One or more Databricks tasks failed!"
 
         }
 
