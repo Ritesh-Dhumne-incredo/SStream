@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    environment {
+        DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
+        DATABRICKS_TOKEN = credentials('DBT')
+    }
+
+    stages {
+        stage('Checkout Notebook Repo') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Hritik-Incredo/SStream.git'
+            }
+        }
+
+        stage('Install Databricks CLI') {
+            steps {
+                bat '''
+                    echo Upgrading pip and installing Databricks CLI...
+                    python -m pip install --upgrade pip
+                    pip install --upgrade databricks-cli
+                '''
+            }
+        }
+
+        stage('Run Databricks Notebook') {
+            steps {
+                bat """
+                    echo Running Databricks notebook using Python module...
+
+                    python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"2236063f6f28e164\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\\"}}"
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Databricks notebook job finished."
+        }
+    }
+}
