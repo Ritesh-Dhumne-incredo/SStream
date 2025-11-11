@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DATABRICKS_HOST = credentials('DBH')
+        DATABRICKS_HOST = credentials('DBHost')
         DATABRICKS_TOKEN = credentials('DBT') // Jenkins secret text token
     }
 
@@ -30,7 +30,7 @@ pipeline {
             steps {
                 // ✅ Inject Databricks host + token from Jenkins credentials
                 withCredentials([
-                    string(credentialsId: 'DBH', variable: 'DATABRICKS_HOST'),
+                    string(credentialsId: 'DBHost', variable: 'DATABRICKS_HOST'),
                     string(credentialsId: 'DBT', variable: 'DATABRICKS_TOKEN')
                 ]) {
                     script {
