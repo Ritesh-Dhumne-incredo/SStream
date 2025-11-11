@@ -3,11 +3,11 @@ pipeline {
 
     environment {
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // stored in Jenkins credentials
+        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // Jenkins secret text token
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout GitHub Repo') {
             steps {
                 git url: 'https://github.com/Hritik-Incredo/SStream.git', branch: 'main'
             }
@@ -29,16 +29,42 @@ pipeline {
             }
         }
 
-        stage('Run Databricks Notebook') {
+        stage('Run Databricks Notebook and Monitor') {
             steps {
                 script {
-                    // Run the Databricks job and capture return code
-                    def status = bat(script: 'databricks jobs run-now --json @notebook_run.json', returnStatus: true)
+                    // Trigger the notebook and capture output
+                    def output = bat(script: 'databricks jobs run-now --json @notebook_run.json', returnStdout: true).trim()
+                    echo "Databricks run response: ${output}"
 
-                    if (status != 0) {
+                    // Parse run_id from JSON
+                    def json = readJSON text: output
+                    def runId = json.run_id
+                    echo "Triggered run_id: ${runId}"
+
+                    // Poll job status until it completes
+                    def status = ""
+                    while (true) {
+                        sleep 10  // 10-second interval
+                        def runInfoRaw = bat(script: "databricks jobs get --run-id ${runId}", returnStdout: true).trim()
+                        def runInfo = readJSON text: runInfoRaw
+                        status = runInfo.state.life_cycle_state
+                        echo "Current run status: ${status}"
+
+                        if (status == "TERMINATED" || status == "SKIPPED" || status == "INTERNAL_ERROR") {
+                            break
+                        }
+                    }
+
+                    // Check final result
+                    def finalInfoRaw = bat(script: "databricks jobs get --run-id ${runId}", returnStdout: true).trim()
+                    def finalInfo = readJSON text: finalInfoRaw
+                    def resultState = finalInfo.state.result_state
+                    echo "Final result_state: ${resultState}"
+
+                    if (resultState != "SUCCESS") {
                         error "Databricks notebook run failed. Check Databricks UI for details."
                     } else {
-                        echo "Notebook ran successfully."
+                        echo "Notebook ran successfully!"
                     }
                 }
             }
