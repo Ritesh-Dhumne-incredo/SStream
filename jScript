@@ -16,6 +16,7 @@ pipeline {
         stage('Install Databricks CLI') {
             steps {
                 bat '''
+                    echo Upgrading pip and installing Databricks CLI...
                     python -m pip install --upgrade pip
                     pip install --upgrade databricks-cli
                 '''
@@ -24,17 +25,11 @@ pipeline {
 
         stage('Run Databricks Notebook') {
             steps {
-                bat '''
-                    echo Running Databricks notebook...
-                    
-                    databricks runs submit --json "{
-                      \"run_name\": \"Jenkins Notebook Run\",
-                      \"existing_cluster_id\": \"<cluster-id>\",
-                      \"notebook_task\": {
-                        \"notebook_path\": \"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\"
-                      }
-                    }"
-                '''
+                bat """
+                    echo Running Databricks notebook on Databricks workspace...
+
+                    databricks runs submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"<cluster-id>\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\\"}}"
+                """
             }
         }
     }
