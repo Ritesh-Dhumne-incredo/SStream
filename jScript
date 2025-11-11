@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // Jenkins secret text token
+        DATABRICKS_HOST = 'DBH'
+        DATABRICKS_TOKEN = credentials('DBT') // Jenkins secret text token
     }
 
     stages {
