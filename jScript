@@ -28,7 +28,7 @@ pipeline {
                 bat """
                     echo Running Databricks notebook using Python module...
 
-                    python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"2236063f6f28e164\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming\\"}}"
+                    python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"2236063f6f28e164\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/SparkStreaming\\"}}"
                 """
             }
         }
