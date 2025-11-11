@@ -44,7 +44,7 @@ pipeline {
 
                     // Submit notebook and wait for completion
                     def submitOutput = bat(returnStdout: true, script: """
-                        databricks runs submit --json @notebook_run.json --wait --output JSON
+                        databricks runs submit --json @notebook_run.json --wait
                     """).trim()
 
                     echo "Databricks run output:\n${submitOutput}"
