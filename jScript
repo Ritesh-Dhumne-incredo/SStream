@@ -3,65 +3,56 @@ pipeline {
 
     environment {
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // token stored in Jenkins credentials
-        CLUSTER_ID = '2236063f6f28e164'
-        NOTEBOOK_PATH = '/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream'
+        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // store your token in Jenkins credentials
     }
-
 
     stages {
         stage('Checkout SCM') {
             steps {
-                checkout([$class: 'GitSCM',
-                          branches: [[name: '*/main']],
-                          userRemoteConfigs: [[url: 'https://github.com/Hritik-Incredo/SStream.git']]])
-            }
-        }
-
-        stage('Install Databricks CLI') {
-            steps {
-                bat 'python -m pip install --upgrade pip'
-                bat 'pip install --upgrade databricks-cli'
+                git url: 'https://github.com/Hritik-Incredo/SStream.git', branch: 'main'
             }
         }
 
         stage('Prepare Notebook JSON') {
             steps {
                 script {
-                    // Create JSON for Databricks run
+                    // Create JSON file for the notebook run
                     def jsonContent = """
-{
-  "run_name": "Jenkins Notebook Run - Build #${env.BUILD_NUMBER}",
-  "existing_cluster_id": "${env.CLUSTER_ID}",
-  "notebook_task": {
-    "notebook_path": "${env.NOTEBOOK_PATH}"
-  }
-}
-"""
-                    writeFile file: 'notebook_run.json', text: jsonContent.trim()
-
-                    // Debug: print JSON content
-                    bat 'type notebook_run.json'
+                    {
+                        "run_name": "Jenkins Notebook Run - Build #${env.BUILD_NUMBER}",
+                        "existing_cluster_id": "2236063f6f28e164",
+                        "notebook_task": {
+                            "notebook_path": "/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream"
+                        }
+                    }
+                    """
+                    writeFile file: 'notebook_run.json', text: jsonContent
                 }
             }
         }
 
         stage('Run Databricks Notebook') {
             steps {
-                // Run notebook and fail Jenkins if it fails
-                bat """
-                    databricks runs submit --json "@notebook_run.json" --wait
-                """
+                script {
+                    // Submit notebook and fail pipeline if errors occur
+                    def result = bat(
+                        script: 'databricks runs submit --json "@notebook_run.json" --wait',
+                        returnStatus: true
+                    )
+                    
+                    if (result != 0) {
+                        error "Databricks notebook run failed. Check Databricks UI for details."
+                    } else {
+                        echo "Notebook ran successfully."
+                    }
+                }
             }
         }
     }
 
     post {
-        success {
-            echo "Databricks notebook completed successfully."
-        }
-        failure {
-            echo "Databricks notebook failed. Check logs!"
+        always {
+            echo 'Databricks notebook job finished.'
         }
     }
 }
