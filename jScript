@@ -36,7 +36,7 @@ pipeline {
                 script {
                     // Submit notebook and fail pipeline if errors occur
                     def result = bat(
-                        script: 'databricks jobs run-now --json-file @notebook_run.json --wait',
+                        script: 'databricks jobs run-now --json @notebook_run.json --wait',
                         returnStatus: true
                     )
                     
