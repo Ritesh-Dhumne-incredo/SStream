@@ -4,8 +4,8 @@ pipeline {
     environment {
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
         DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2')
-        CLUSTER_ID = '2236063f6f28e164' // <-- Replace with your cluster ID
-        NOTEBOOK_PATH = '/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream' // <-- Replace with your notebook path
+        CLUSTER_ID = '2236063f6f28e164' // Replace with your cluster ID
+        NOTEBOOK_PATH = '/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream' // Replace with your notebook path
     }
 
     stages {
@@ -29,27 +29,29 @@ pipeline {
                 script {
                     echo "Creating temporary JSON file for Databricks notebook run..."
 
-                    // Write notebook run JSON to a file
-                    writeFile file: 'notebook_run.json', text: """
-                    {
-                        "run_name": "Jenkins Notebook Run - Build #${env.BUILD_NUMBER}",
-                        "existing_cluster_id": "${env.CLUSTER_ID}",
-                        "notebook_task": {
-                            "notebook_path": "${env.NOTEBOOK_PATH}"
-                        }
-                    }
-                    """
+                    // Use triple quotes and no trailing comma
+                    def jsonContent = """
+{
+  "run_name": "Jenkins Notebook Run - Build #${env.BUILD_NUMBER}",
+  "existing_cluster_id": "${env.CLUSTER_ID}",
+  "notebook_task": {
+    "notebook_path": "${env.NOTEBOOK_PATH}"
+  }
+}
+"""
+
+                    writeFile file: 'notebook_run.json', text: jsonContent.trim()
 
                     echo "Submitting notebook to Databricks..."
 
-                    // Submit notebook and wait for completion
+                    // Submit notebook and wait
                     def submitOutput = bat(returnStdout: true, script: """
                         databricks runs submit --json @notebook_run.json --wait
                     """).trim()
 
                     echo "Databricks run output:\n${submitOutput}"
 
-                    // Check if the notebook run failed
+                    // Fail Jenkins if notebook run failed
                     if (!submitOutput.contains('"result_state": "SUCCESS"')) {
                         error "Databricks notebook failed! Check the output above for details."
                     } else {
