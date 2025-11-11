@@ -26,9 +26,9 @@ pipeline {
         stage('Run Databricks Notebook') {
             steps {
                 bat """
-                    echo Running Databricks notebook on Databricks workspace...
+                    echo Running Databricks notebook using Python module...
 
-                    databricks runs submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"<cluster-id>\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\\"}}"
+                    python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"2236063f6f28e164\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Repos/hritik@incredo.com/SStream/SparkStreaming/API_stream\\"}}"
                 """
             }
         }
