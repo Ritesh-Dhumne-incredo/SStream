@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // store your token in Jenkins credentials
+        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2') // stored in Jenkins credentials
     }
 
     stages {
@@ -13,27 +13,29 @@ pipeline {
             }
         }
 
-stage('Prepare Notebook JSON') {
-    script {
-        writeFile file: 'notebook_run.json', text: """
-        {
-          "job_id": 1234,
-          "notebook_params": {
-            "input_path": "/mnt/data/sample.csv",
-            "run_date": "2025-11-11"
-          }
+        stage('Prepare Notebook JSON') {
+            steps {
+                script {
+                    writeFile file: 'notebook_run.json', text: """
+                    {
+                      "job_id": 1234,
+                      "notebook_params": {
+                        "input_path": "/mnt/data/sample.csv",
+                        "run_date": "2025-11-11"
+                      }
+                    }
+                    """
+                }
+            }
         }
-        """
-    }
-}
+
         stage('Run Databricks Notebook') {
             steps {
                 script {
-                        bat 'databricks jobs run-now --json @notebook_run.json'
-                        }
-                    
-                    
-                    if (result != 0) {
+                    // Run the Databricks job and capture return code
+                    def status = bat(script: 'databricks jobs run-now --json @notebook_run.json', returnStatus: true)
+
+                    if (status != 0) {
                         error "Databricks notebook run failed. Check Databricks UI for details."
                     } else {
                         echo "Notebook ran successfully."
