@@ -18,9 +18,9 @@ pipeline {
                 script {
                     writeFile file: 'notebook_run.json', text: """
                     {
-                      "job_id": 1234,
+                      "job_id": 216873594474493,
                       "notebook_params": {
-                        "input_path": "/mnt/data/sample.csv",
+                        "input_path": "Workspace/Users/hritik.moon@incredotech.com/SStream",
                         "run_date": "2025-11-11"
                       }
                     }
