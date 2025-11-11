@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DATABRICKS_TOKEN_2')
+        DATABRICKS_TOKEN = credentials('DBT')
     }
 
     stages {
