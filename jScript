@@ -1,42 +1,123 @@
 pipeline {
+
     agent any
-
+ 
     environment {
+
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DBT')
+
+        DATABRICKS_TOKEN = credentials('DBT')     // Jenkins secret text credential
+
+        JOB_ID = '216873594474493'                // Your Databricks job ID
+
     }
-
+ 
     stages {
+
         stage('Checkout Notebook Repo') {
+
             steps {
+
                 git branch: 'main', url: 'https://github.com/Ritesh-Dhumne-incredo/SStream.git'
-            }
-        }
 
+            }
+
+        }
+ 
         stage('Install Databricks CLI') {
-            steps {
-                bat '''
-                    echo Upgrading pip and installing Databricks CLI...
-                    python -m pip install --upgrade pip
-                    pip install --upgrade databricks-cli
-                '''
-            }
-        }
 
-        stage('Run Databricks Notebook') {
             steps {
+
+                bat '''
+
+                    echo Upgrading pip and installing Databricks CLI...
+
+                    python -m pip install --upgrade pip
+
+                    pip install --upgrade databricks-cli
+
+                '''
+
+            }
+
+        }
+ 
+        stage('Run Databricks Notebook (Ad-hoc)') {
+
+            steps {
+
                 bat """
-                    echo Running Databricks notebook using Python module...
+
+                    echo Configuring Databricks CLI...
+
+                    echo [DEFAULT]> %USERPROFILE%\\.databrickscfg
+
+                    echo host = %DATABRICKS_HOST%>> %USERPROFILE%\\.databrickscfg
+
+                    echo token = %DATABRICKS_TOKEN%>> %USERPROFILE%\\.databrickscfg
+ 
+                    echo Running Databricks notebook directly...
 
                     python -m databricks_cli.runs.cli submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"2236063f6f28e164\\", \\"notebook_task\\": {\\"notebook_path\\": \\"/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/API_stream\\"}}"
+
                 """
+
             }
+
         }
+ 
+        stage('Run Databricks Job (Predefined Job)') {
+
+            steps {
+
+                bat """
+
+                    echo Configuring Databricks CLI...
+
+                    echo [DEFAULT]> %USERPROFILE%\\.databrickscfg
+
+                    echo host = %DATABRICKS_HOST%>> %USERPROFILE%\\.databrickscfg
+
+                    echo token = %DATABRICKS_TOKEN%>> %USERPROFILE%\\.databrickscfg
+ 
+                    echo Triggering Databricks Job ID: %JOB_ID%
+
+                    databricks jobs run-now --job-id %JOB_ID% --output > run_output.json
+ 
+                    echo Checking job run result...
+
+                    type run_output.json
+
+                """
+
+            }
+
+        }
+
+    }
+ 
+    post {
+
+        always {
+
+            echo "Databricks pipeline finished (both notebook and job stages executed)."
+
+        }
+
+        success {
+
+            echo "✅ All Databricks tasks succeeded!"
+
+        }
+
+        failure {
+
+            echo "❌ Databricks pipeline failed!"
+
+        }
+
     }
 
-    post {
-        always {
-            echo "Databricks notebook job finished."
-        }
-    }
 }
+
+ 
