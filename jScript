@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout Notebook Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/Hritik-Incredo/SStream.git'
+                git branch: 'main', url: 'https://github.com/Ritesh-Dhumne-incredo/SStream.git'
             }
         }
 
