@@ -1,154 +1,255 @@
 pipeline {
-    agent any
+ 
+    agent any
+ 
+    environment {
 
+        // Databricks details
 
+        DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
 
-    environment {
-        // Credentials are loaded securely from Jenkins
-        DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DBT')
-        JOB_ID = '216873594474493'
+        DATABRICKS_TOKEN = credentials('DBT') // Secure Jenkins credential
+
         CLUSTER_ID = '2236063f6f28e164'
-        NOTEBOOK_PATH = '/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream'
-    }
 
+        NOTEBOOK_PATH = '/Workspace/Users/hritik.moon@incredotech.com/SStream/SparkStreaming/API_stream'
 
+        JOB_NAME = 'Jenkins_Auto_Job'
 
-    options {
-        timestamps()
-    }
+    }
+ 
+    options {
 
+        timestamps()
 
+    }
+ 
+    stages {
+ 
+        stage('Checkout Repo') {
 
-    stages {
-        stage('Checkout Repo') {
-            steps {
-                checkout scm
+            steps {
+
+                echo "🧾 Checking out source code..."
+
                 git branch: 'main',
+
                     url: 'https://github.com/Hritik-Incredo/SStream.git'
-                echo "✅ Checked out code from ${env.GIT_URL}"		
-            }
-        }
 
+                echo "✅ Checked out repository successfully."
 
+            }
 
-        stage('Setup Databricks CLI') {
-            steps {
-                bat '''
-                python -m venv venv
-                call venv\\Scripts\\activate
-                pip install --upgrade pip
-                pip install databricks-cli jq
-                databricks --version
-                echo "✅ Databricks CLI installed"
-                '''
-            }
-        }
+        }
+ 
+        stage('Setup Databricks CLI') {
 
+            steps {
 
+                bat '''
 
-        stage('Ensure Databricks Job Exists') {
-            steps {
-                bat '''
-                call venv\\Scripts\\activate
+                    python -m venv venv
 
+                    call venv\\Scripts\\activate
 
+                    python -m pip install --upgrade pip
 
-                echo "🔍 Checking if job '%JOB_NAME%' exists..."
-                databricks jobs list --output JSON > jobs.json
+                    pip install databricks-cli jq
 
+                    databricks --version
 
+                    echo ✅ Databricks CLI installed successfully
 
-                set FOUND_JOB_ID=
-                for /f "tokens=* delims=" %%a in ('jq -r ".jobs[] | select(.settings.name==\\"%JOB_NAME%\\") | .job_id" jobs.json') do (
-                    set FOUND_JOB_ID=%%a
-                )
+                '''
 
+            }
 
+        }
+ 
+        stage('Configure Databricks Authentication') {
 
-                if defined FOUND_JOB_ID (
-                    echo "♻️ Job already exists with ID %FOUND_JOB_ID%. Updating it..."
-                    echo {"new_settings":{"name":"%JOB_NAME%","tasks":[{"task_key":"spark_task","notebook_task":{"notebook_path":"%NOTEBOOK_PATH%"},"existing_cluster_id":"<your-cluster-id>"}]}} > update.json
-                    databricks jobs reset --job-id %FOUND_JOB_ID% --json @update.json
-                    echo %FOUND_JOB_ID% > job_id.txt
-                ) else (
-                    echo "🆕 Creating a new Databricks job..."
-                    echo {"name":"%JOB_NAME%","tasks":[{"task_key":"spark_task","notebook_task":{"notebook_path":"%NOTEBOOK_PATH%"},"new_cluster":{"spark_version":"13.3.x-scala2.12","node_type_id":"small","num_workers":1}}]} > create.json
-                    databricks jobs create --json @create.json > created.json
-                    jq -r ".job_id" created.json > job_id.txt
-                )
+            steps {
 
+                // Write Databricks credentials to a secure config file
 
+                withCredentials([string(credentialsId: 'DBT', variable: 'DB_TOKEN')]) {
 
-                set /p JOB_ID=<job_id.txt
-                echo "✅ Job ID is %JOB_ID%"
-                '''
-            }
-        }
+                    bat '''
 
+                        set DBCFG=%WORKSPACE%\\.databrickscfg
 
+                        echo [DEFAULT]> "%DBCFG%"
 
-        stage('Run Databricks Job and Monitor') {
-            steps {
-                bat '''
-                call venv\\Scripts\\activate
-                set /p JOB_ID=<job_id.txt
-                echo "🚀 Triggering Databricks job %JOB_ID%..."
-                databricks jobs run-now --job-id %JOB_ID% > run.json
-                jq -r ".run_id" run.json > run_id.txt
+                        echo host = %DATABRICKS_HOST%>> "%DBCFG%"
 
+                        echo token = %DB_TOKEN%>> "%DBCFG%"
 
+                        setx DATABRICKS_CONFIG_FILE "%DBCFG%"
 
-                set /p RUN_ID=<run_id.txt
-                echo "📡 Monitoring run ID: %RUN_ID%"
+                        echo ✅ Databricks CLI configured successfully.
 
+                    '''
 
+                }
 
-                set ATTEMPTS=0
-                :loop
-                set /a ATTEMPTS+=1
-                databricks runs get --run-id %RUN_ID% > status.json
-                jq -r ".state.life_cycle_state" status.json > status.txt
-                jq -r ".state.result_state" status.json > result.txt
+            }
 
+        }
+ 
+        stage('Ensure Databricks Job Exists') {
 
+            steps {
 
-                set /p STATUS=<status.txt
-                set /p RESULT=<result.txt
-                echo Run Status: %STATUS% | Result: %RESULT%
+                bat '''
 
+                    call venv\\Scripts\\activate
 
+                    echo 🔍 Checking if job "%JOB_NAME%" exists...
 
-                if "%STATUS%"=="TERMINATED" (
-                    if "%RESULT%"=="SUCCESS" (
-                        echo "✅ Job succeeded!"
-                        goto done
-                    ) else (
-                        echo "❌ Job failed!"
-                        databricks runs get-output --run-id %RUN_ID%
-                        exit /b 1
-                    )
-                )
-                if %ATTEMPTS% GEQ 60 (
-                    echo "⏰ Timeout waiting for job completion"
-                    exit /b 2
-                )
-                timeout /t 10 >nul
-                goto loop
-                :done
-                '''
-            }
-        }
-    }
+                    databricks jobs list --output JSON > jobs.json
+ 
+                    set FOUND_JOB_ID=
 
+                    for /f "tokens=* delims=" %%a in ('jq -r ".jobs[] | select(.settings.name==\\"%JOB_NAME%\\") | .job_id" jobs.json') do (
 
+                        set FOUND_JOB_ID=%%a
 
-    post {
-        always {
-            echo "🧾 Pipeline finished."
-        }
-        failure {
-            echo "❌ Pipeline failed. Check logs and Databricks job output."
-        }
-    }
+                    )
+ 
+                    if defined FOUND_JOB_ID (
+
+                        echo ♻️ Job already exists with ID %FOUND_JOB_ID%. Updating it...
+
+                        echo {"new_settings":{"name":"%JOB_NAME%","tasks":[{"task_key":"spark_task","notebook_task":{"notebook_path":"%NOTEBOOK_PATH%"},"existing_cluster_id":"%CLUSTER_ID%"}]}} > update.json
+
+                        databricks jobs reset --job-id %FOUND_JOB_ID% --json @update.json
+
+                        echo %FOUND_JOB_ID% > job_id.txt
+
+                    ) else (
+
+                        echo 🆕 Creating a new Databricks job...
+
+                        echo {"name":"%JOB_NAME%","tasks":[{"task_key":"spark_task","notebook_task":{"notebook_path":"%NOTEBOOK_PATH%"},"existing_cluster_id":"%CLUSTER_ID%"}]} > create.json
+
+                        databricks jobs create --json @create.json > created.json
+
+                        jq -r ".job_id" created.json > job_id.txt
+
+                    )
+ 
+                    set /p JOB_ID=<job_id.txt
+
+                    echo ✅ Using Databricks Job ID: %JOB_ID%
+
+                '''
+
+            }
+
+        }
+ 
+        stage('Run Databricks Job and Monitor') {
+
+            steps {
+
+                bat '''
+
+                    call venv\\Scripts\\activate
+
+                    set /p JOB_ID=<job_id.txt
+
+                    echo 🚀 Triggering Databricks job %JOB_ID%...
+
+                    databricks jobs run-now --job-id %JOB_ID% > run.json
+ 
+                    jq -r ".run_id" run.json > run_id.txt
+
+                    set /p RUN_ID=<run_id.txt
+
+                    echo 📡 Monitoring run ID: %RUN_ID%
+ 
+                    set ATTEMPTS=0
+
+                    :loop
+
+                    set /a ATTEMPTS+=1
+ 
+                    databricks runs get --run-id %RUN_ID% > status.json
+
+                    jq -r ".state.life_cycle_state" status.json > status.txt
+
+                    jq -r ".state.result_state" status.json > result.txt
+ 
+                    set /p STATUS=<status.txt
+
+                    set /p RESULT=<result.txt
+ 
+                    echo Run Status: %STATUS% | Result: %RESULT%
+ 
+                    if "%STATUS%"=="TERMINATED" (
+
+                        if "%RESULT%"=="SUCCESS" (
+
+                            echo ✅ Job succeeded!
+
+                            goto done
+
+                        ) else (
+
+                            echo ❌ Job failed!
+
+                            databricks runs get-output --run-id %RUN_ID%
+
+                            exit /b 1
+
+                        )
+
+                    )
+ 
+                    if %ATTEMPTS% GEQ 60 (
+
+                        echo ⏰ Timeout waiting for job completion
+
+                        exit /b 2
+
+                    )
+ 
+                    timeout /t 10 >nul
+
+                    goto loop
+
+                    :done
+
+                '''
+
+            }
+
+        }
+
+    }
+ 
+    post {
+
+        always {
+
+            echo "🧾 Pipeline finished."
+
+        }
+
+        success {
+
+            echo "✅ All Databricks tasks completed successfully!"
+
+        }
+
+        failure {
+
+            echo "❌ Pipeline failed. Check logs and Databricks output for details."
+
+        }
+
+    }
+
 }
+
+ 
