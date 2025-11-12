@@ -3,17 +3,14 @@ pipeline {
     agent any
 
     tools {
-        // ✅ Make sure you added this Git installation in:
-        // Manage Jenkins → Tools → Git Installations
         git 'Git'
     }
 
     environment {
-        // 🔹 Databricks workspace information
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DBT')          // Jenkins Secret Text Credential ID
-        JOB_ID = '216873594474493'                     // Databricks Predefined Job ID
-        CLUSTER_ID = '2236063f6f28e164'                // Existing interactive cluster ID
+        DATABRICKS_TOKEN = credentials('DBT')
+        JOB_ID = '216873594474493'
+        CLUSTER_ID = '2236063f6f28e164'
         NOTEBOOK_PATH = '/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/API_stream'
     }
 
@@ -21,9 +18,7 @@ pipeline {
 
         stage('Checkout Notebook Repo') {
             steps {
-                echo "🧾 Checking out source code from GitHub..."
-                // 🔹 If your repo is public, you can remove the credentialsId line.
-                // 🔹 If private, add Jenkins credential ID created for GitHub (username + PAT)
+                echo "🧾 Checking out source code..."
                 git branch: 'main',
                     url: 'https://github.com/Hritik-Incredo/SStream.git'
             }
@@ -32,7 +27,7 @@ pipeline {
         stage('Install Databricks CLI') {
             steps {
                 bat '''
-                    echo Upgrading pip and installing Databricks CLI...
+                    echo Installing/Upgrading Databricks CLI...
                     python -m pip install --upgrade pip
                     pip install --upgrade databricks-cli
                 '''
@@ -43,7 +38,7 @@ pipeline {
             steps {
                 bat """
                     echo ===============================================
-                    echo ⚙️  Configuring Databricks CLI
+                    echo ⚙️ Configuring Databricks CLI
                     echo ===============================================
                     set DBCFG=C:\\Jenkins\\.databrickscfg
                     echo [DEFAULT]> %DBCFG%
@@ -51,6 +46,21 @@ pipeline {
                     echo token = %DATABRICKS_TOKEN%>> %DBCFG%
                     setx DATABRICKS_CONFIG_FILE "%DBCFG%"
                     echo ✅ Databricks CLI configured successfully.
+                """
+            }
+        }
+
+        stage('Validate Databricks Connectivity') {
+            steps {
+                bat """
+                    echo Checking Databricks connectivity...
+                    databricks clusters list
+                    if %errorlevel% neq 0 (
+                        echo ❌ Databricks CLI authentication failed.
+                        exit /b 1
+                    ) else (
+                        echo ✅ Databricks CLI authentication successful.
+                    )
                 """
             }
         }
@@ -72,7 +82,6 @@ pipeline {
 
                     echo Waiting for notebook to complete...
                     databricks runs wait --run-id %RUN_ID%
-
                     databricks runs get --run-id %RUN_ID% > notebook_result.json
 
                     for /f %%a in ('powershell -Command "(Get-Content notebook_result.json | ConvertFrom-Json).state.result_state"') do set RESULT=%%a
@@ -104,7 +113,6 @@ pipeline {
 
                     echo Waiting for job to complete...
                     databricks runs wait --run-id %RUN_ID%
-
                     databricks runs get --run-id %RUN_ID% > job_result.json
 
                     for /f %%a in ('powershell -Command "(Get-Content job_result.json | ConvertFrom-Json).state.result_state"') do set RESULT=%%a
