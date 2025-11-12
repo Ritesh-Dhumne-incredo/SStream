@@ -3,11 +3,10 @@ pipeline {
     agent any
 
     environment {
-        // 🔹 Databricks workspace info
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DBT')      // Jenkins Secret Text credential ID
-        JOB_ID = '216873594474493'                 // Predefined Databricks Job ID
-        CLUSTER_ID = '2236063f6f28e164'            // Cluster ID for ad-hoc runs
+        DATABRICKS_TOKEN = credentials('DBT')       // Jenkins Secret Text credential ID
+        JOB_ID = '216873594474493'                  // Databricks Job ID
+        CLUSTER_ID = '2236063f6f28e164'             // Existing cluster
         NOTEBOOK_PATH = '/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/API_stream'
     }
 
@@ -15,7 +14,7 @@ pipeline {
 
         stage('Checkout Notebook Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/Ritesh-Dhumne-incredo/SStream.git'
+                git branch: 'main', url: 'https://github.com/Hritik-Incredo/SStream.git'
             }
         }
 
@@ -43,7 +42,7 @@ pipeline {
             }
         }
 
-        stage('Run Ad-hoc Notebook (run-submit)') {
+        stage('Run Databricks Notebook') {
             steps {
                 bat """
                     echo ===============================================
@@ -52,7 +51,6 @@ pipeline {
 
                     databricks runs submit --json "{\\"run_name\\": \\"Jenkins Notebook Run - Build #${BUILD_NUMBER}\\", \\"existing_cluster_id\\": \\"%CLUSTER_ID%\\", \\"notebook_task\\": {\\"notebook_path\\": \\"%NOTEBOOK_PATH%\\"}}" > notebook_run.json
 
-                    rem Extract run_id from JSON safely using PowerShell
                     for /f %%a in ('powershell -Command "(Get-Content notebook_run.json | ConvertFrom-Json).run_id"') do set RUN_ID=%%a
                     echo 🔹 Notebook Run ID: %RUN_ID%
                     echo 🔗 Run URL: %DATABRICKS_HOST%#job/%RUN_ID%
@@ -76,7 +74,7 @@ pipeline {
             }
         }
 
-        stage('Run Predefined Databricks Job (run-now)') {
+        stage('Run Predefined Databricks Job') {
             steps {
                 bat """
                     echo ===============================================
@@ -85,7 +83,6 @@ pipeline {
 
                     databricks jobs run-now --job-id %JOB_ID% --output > job_run.json
 
-                    rem Extract run_id safely
                     for /f %%a in ('powershell -Command "(Get-Content job_run.json | ConvertFrom-Json).run_id"') do set RUN_ID=%%a
                     echo 🔹 Databricks Job Run ID: %RUN_ID%
                     echo 🔗 Run URL: %DATABRICKS_HOST%#job/%JOB_ID%/run/%RUN_ID%
