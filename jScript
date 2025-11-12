@@ -2,11 +2,18 @@ pipeline {
 
     agent any
 
+    tools {
+        // ✅ Make sure you added this Git installation in:
+        // Manage Jenkins → Tools → Git Installations
+        git 'Git'
+    }
+
     environment {
+        // 🔹 Databricks workspace information
         DATABRICKS_HOST = 'https://dbc-6289de08-cfb9.cloud.databricks.com'
-        DATABRICKS_TOKEN = credentials('DBT')       // Jenkins Secret Text credential ID
-        JOB_ID = '216873594474493'                  // Databricks Job ID
-        CLUSTER_ID = '2236063f6f28e164'             // Existing cluster
+        DATABRICKS_TOKEN = credentials('DBT')          // Jenkins Secret Text Credential ID
+        JOB_ID = '216873594474493'                     // Databricks Predefined Job ID
+        CLUSTER_ID = '2236063f6f28e164'                // Existing interactive cluster ID
         NOTEBOOK_PATH = '/Workspace/Users/hritik@incredo.com/SStream/SparkStreaming/API_stream'
     }
 
@@ -14,7 +21,11 @@ pipeline {
 
         stage('Checkout Notebook Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/Hritik-Incredo/SStream.git'
+                echo "🧾 Checking out source code from GitHub..."
+                // 🔹 If your repo is public, you can remove the credentialsId line.
+                // 🔹 If private, add Jenkins credential ID created for GitHub (username + PAT)
+                git branch: 'main',
+                    url: 'https://github.com/Hritik-Incredo/SStream.git'
             }
         }
 
@@ -31,7 +42,9 @@ pipeline {
         stage('Configure Databricks CLI') {
             steps {
                 bat """
-                    echo Configuring Databricks CLI...
+                    echo ===============================================
+                    echo ⚙️  Configuring Databricks CLI
+                    echo ===============================================
                     set DBCFG=C:\\Jenkins\\.databrickscfg
                     echo [DEFAULT]> %DBCFG%
                     echo host = %DATABRICKS_HOST%>> %DBCFG%
@@ -74,7 +87,7 @@ pipeline {
             }
         }
 
-        stage('Run Predefined Databricks Job') {
+        stage('Run Databricks Predefined Job') {
             steps {
                 bat """
                     echo ===============================================
