@@ -35,20 +35,40 @@ pipeline {
         }
 
         stage('Configure Databricks CLI') {
+        
             steps {
-                bat """
-                    echo ===============================================
-                    echo ⚙️ Configuring Databricks CLI
-                    echo ===============================================
-                    set DBCFG=C:\\Jenkins\\.databrickscfg
-                    echo [DEFAULT]> %DBCFG%
-                    echo host = %DATABRICKS_HOST%>> %DBCFG%
-                    echo token = %DATABRICKS_TOKEN%>> %DBCFG%
-                    setx DATABRICKS_CONFIG_FILE "%DBCFG%"
-                    echo ✅ Databricks CLI configured successfully.
-                """
+        
+                withCredentials([string(credentialsId: 'DBT', variable: 'DB_TOKEN')]) {
+        
+                    bat """
+        
+                        echo ===============================================
+        
+                        echo ⚙️ Configuring Databricks CLI
+        
+                        echo ===============================================
+        
+                        set DBCFG=C:\\Jenkins\\.databrickscfg
+        
+                        echo [DEFAULT]> %DBCFG%
+        
+                        echo host = %DATABRICKS_HOST%>> %DBCFG%
+        
+                        echo token = %DB_TOKEN%>> %DBCFG%
+        
+                        setx DATABRICKS_CONFIG_FILE "%DBCFG%"
+        
+                        echo ✅ Databricks CLI configured successfully.
+        
+                    """
+        
+                }
+        
             }
+        
         }
+
+ 
 
         stage('Validate Databricks Connectivity') {
             steps {
